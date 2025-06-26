@@ -104,23 +104,6 @@ export default function HomeScreen() {
     }
   };
 
-  const playBell = async () => {
-    try {
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-      }
-
-      const { sound } = await Audio.Sound.createAsync(bell);
-      soundRef.current = sound;
-
-      await sound.playAsync();
-
-    } catch (error) {
-      console.error("Error playing bell:", error);
-    }
-  };
-
-
   const main = async () => {
     if (mode !== "randomPrompt") return;
 
@@ -176,107 +159,127 @@ export default function HomeScreen() {
     initialButtons.map((btn, index) => (
       <TouchableOpacity
         key={index}
-        style={buttonStyles.stackButton}
+        style={mainStyles.stackButton}
         onPress={btn.onPress}
       >
-        <Text style={buttonStyles.buttonText}>{btn.label}</Text>
+        <Text style={mainStyles.buttonText}>{btn.label}</Text>
       </TouchableOpacity>
     ));
 
+
+    const handleBuzzPress = async () => {
+      setForceNext(true);
+      if (soundRef.current) {
+        try {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+          setFinalPhase(true);
+
+          const randomNum = Math.floor(Math.random() * indexes.science) + 1;
+          const url = `https://qb-walker-data.vercel.app/science/science-${randomNum}-3.mp3`;
+
+          playSound(url, () => setIsPlaying(false));
+        } catch (e) {
+          console.warn("Error handling buzz press", e);
+        }
+      }
+    };
+
+
     return (
-    <>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Quizbowl walker!</ThemedText>
+    <ThemedView>
+
+      <ThemedView style={mainStyles.top}>
+        <ThemedView style={styles.titleContainer}>
+          <ThemedText type="title">Quizbowl walker!</ThemedText>
+        </ThemedView>
+
+        <ThemedView style={styles.stepContainer}>
+          <ThemedText type="subtitle">Available questions:</ThemedText>
+          <ThemedText>
+            <ThemedText type="defaultSemiBold">Science</ThemedText>: {indexes.science}
+          </ThemedText>
+          <ThemedText>
+            <ThemedText type="defaultSemiBold">History</ThemedText>: {indexes.history}
+          </ThemedText>
+        </ThemedView>
       </ThemedView>
 
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Available questions:</ThemedText>
-        <ThemedText>
-          <ThemedText type="defaultSemiBold">Science</ThemedText>: {indexes.science}
-        </ThemedText>
-        <ThemedText>
-          <ThemedText type="defaultSemiBold">History</ThemedText>: {indexes.history}
-        </ThemedText>
-      </ThemedView>
-
-      <View style={buttonStyles.bottom}>
+      <ThemedView style={mainStyles.bottom}>
         {mode === "selecting" ? (
-          <View style={buttonStyles.stackContainer}>{renderInitialButtons()}</View>
+          <View style={mainStyles.stackContainer}>{renderInitialButtons()}</View>
         ) : finalPhase ? (
-          <View style={buttonStyles.stackContainer}>
+          <View style={mainStyles.stackContainer}>
             <TouchableOpacity
-              style={buttonStyles.stackButton}
+              style={mainStyles.stackButton}
               onPress={async () => {
                 await stopSound();
                 main();
               }}
             >
-              <Text style={buttonStyles.buttonText}>Continue</Text>
+              <Text style={mainStyles.buttonText}>Continue</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={buttonStyles.stackButton}
+              style={mainStyles.stackButton}
               onPress={async () => {
                 await stopSound();
                 setMode("selecting");
                 setFinalPhase(false);
               }}
             >
-              <Text style={buttonStyles.buttonText}>Return</Text>
+              <Text style={mainStyles.buttonText}>Return</Text>
             </TouchableOpacity>
           </View>
           ) : isPlaying ? (
-            <TouchableOpacity
-              onPress={() => {
-                setForceNext(true);
-                if (soundRef.current) {
-                  soundRef.current.stopAsync().then(() => {
-                    soundRef.current?.unloadAsync();
-                    setFinalPhase(true);
-                    playSound(
-                      `https://qb-walker-data.vercel.app/science/science-${Math.floor(
-                        Math.random() * indexes.science
-                      ) + 1}-3.mp3`,
-                      () => setIsPlaying(false)
-                    );
-                  });
-                }
-              }}
-              style={buttonStyles.buzzer}
-            >
-              <Text style={buttonStyles.buttonText}>Buzz</Text>
+            <TouchableOpacity onPress={handleBuzzPress} style={[mainStyles.stackButton, mainStyles.buzzer]}>
+              <Text style={mainStyles.buttonText}>Buzz</Text>
             </TouchableOpacity>
           ) : null}
-      </View>
-    </>
+      </ThemedView>
+      
+      {finalPhase && (
+        <ThemedView style={styles.trueBottom}>
+          <ThemedText>Question, answer</ThemedText>
+        </ThemedView>
+      )}
+
+    </ThemedView>
   );
 }
 
 const { height } = Dimensions.get("window");
 
-const buttonStyles = StyleSheet.create({
+const mainStyles = StyleSheet.create({
+  top: {
+    height: height / 4,
+    alignItems: "center",
+    paddingTop: 48,
+    gap: 16.
+  },
   bottom: {
+    height: height / 4,
+    padding: 16,
+    justifyContent: "flex-start",
+  },
+  trueBottom: {
     height: height / 2,
     padding: 16,
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   stackContainer: {
-    flex: 1,
-    justifyContent: "space-evenly",
+    justifyContent: "center",
   },
   stackButton: {
-    backgroundColor: "#3498db",
-    paddingVertical: 20,
+    backgroundColor: "#1a2559",
+    paddingVertical: 15,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    marginVertical: 10,
   },
   buzzer: {
     backgroundColor: "#da090c",
-    paddingVertical: 20,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
   },
   buttonText: {
     color: "#fff",
