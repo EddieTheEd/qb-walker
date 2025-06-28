@@ -12,12 +12,17 @@ import { Audio } from "expo-av";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import historyDataJson from "../../data/qb_history.json";
+import scienceDataJson from "../../data/qb_science.json";
 
 import * as FileSystem from "expo-file-system";
 
 export default function HomeScreen() {
 
   const [indexes, setIndexes] = useState(null);
+  const [randomNum, setRandomNum] = useState<number | null>(null);
+  const [historyData, setHistoryData] = useState(null);
+  const [scienceData, setScienceData] = useState(null);
   const [mode, setMode] = useState<"selecting" | "randomPrompt" | "reviewPrompt">("selecting");
   const [isPlaying, setIsPlaying] = useState(false);
   const [forceNext, setForceNext] = useState(false);
@@ -26,12 +31,19 @@ export default function HomeScreen() {
 
   const bell = require("../../assets/sounds/bell.wav");
 
-
   useEffect(() => {
     fetch('https://qb-walker-data.vercel.app/indexes.json')
       .then((res) => res.json())
       .then((json) => setIndexes(json))
       .catch((err) => console.error(err));
+  }, []);
+
+  useEffect(() => {
+    setHistoryData(historyDataJson);
+  }, []);
+
+  useEffect(() => {
+    setScienceData(scienceDataJson);
   }, []);
 
   useEffect(() => {
@@ -45,7 +57,33 @@ export default function HomeScreen() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedView style={styles.stepContainer}>
-          <ThemedText type="subtitle">Loading json...</ThemedText>
+          <ThemedText type="subtitle">Loading json - indexes</ThemedText>
+          <ThemedText>
+            This may take a while :}
+          </ThemedText>
+        </ThemedView>
+      </View>
+    );
+  }
+
+  if (!historyData) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ThemedView style={styles.stepContainer}>
+          <ThemedText type="subtitle">Loading json - history questions</ThemedText>
+          <ThemedText>
+            This may take a while :}
+          </ThemedText>
+        </ThemedView>
+      </View>
+    );
+  }
+
+  if (!scienceData) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ThemedView style={styles.stepContainer}>
+          <ThemedText type="subtitle">Loading json - science questions</ThemedText>
           <ThemedText>
             This may take a while :}
           </ThemedText>
@@ -91,7 +129,6 @@ export default function HomeScreen() {
     }
   };
 
-
   const stopSound = async () => {
     if (soundRef.current) {
       try {
@@ -112,7 +149,10 @@ export default function HomeScreen() {
     setFinalPhase(false);
 
     const max = indexes.science;
-    const num = Math.floor(Math.random() * max) + 1;
+    const num = Math.floor(Math.random() * max);
+
+    setRandomNum(num-1);
+
     const base = `https://qb-walker-data.vercel.app/science/science-${num}`;
 
     const question1 = `${base}-1.mp3`;
@@ -128,7 +168,6 @@ export default function HomeScreen() {
       });
     };
 
-
     const playSecondOrThird = () => {
       if (forceNext) return playThird();
       if (secondpartexists) {
@@ -142,7 +181,6 @@ export default function HomeScreen() {
 
     playSound(question1, playSecondOrThird);
   };
-
 
   const initialButtons = [
     {
@@ -166,7 +204,6 @@ export default function HomeScreen() {
       </TouchableOpacity>
     ));
 
-
     const handleBuzzPress = async () => {
       setForceNext(true);
       if (soundRef.current) {
@@ -174,9 +211,8 @@ export default function HomeScreen() {
           await soundRef.current.stopAsync();
           await soundRef.current.unloadAsync();
           setFinalPhase(true);
-
-          const randomNum = Math.floor(Math.random() * indexes.science) + 1;
-          const url = `https://qb-walker-data.vercel.app/science/science-${randomNum}-3.mp3`;
+          
+          const url = `https://qb-walker-data.vercel.app/science/science-${randomNum + 1}-3.mp3`;
 
           playSound(url, () => setIsPlaying(false));
         } catch (e) {
@@ -184,7 +220,6 @@ export default function HomeScreen() {
         }
       }
     };
-
 
     return (
     <ThemedView>
@@ -238,9 +273,13 @@ export default function HomeScreen() {
           ) : null}
       </ThemedView>
       
-      {finalPhase && (
+      {finalPhase && randomNum !== null && scienceData[randomNum] && (
         <ThemedView style={styles.trueBottom}>
-          <ThemedText>Question, answer</ThemedText>
+          <ThemedText type="subtitle">Question:</ThemedText>
+          <ThemedText>{scienceData[randomNum].question}</ThemedText>
+
+          <ThemedText type="subtitle" style={{ marginTop: 12 }}>Answer:</ThemedText>
+          <ThemedText>{scienceData[randomNum].answer}</ThemedText>
         </ThemedView>
       )}
 
@@ -255,7 +294,7 @@ const mainStyles = StyleSheet.create({
     height: height / 4,
     alignItems: "center",
     paddingTop: 48,
-    gap: 16.
+    gap: 16,
   },
   bottom: {
     height: height / 4,
