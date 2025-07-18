@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
+  ScrollView,
 } from "react-native";
 import { Image } from "expo-image";
 import { Audio } from "expo-av";
@@ -31,13 +32,7 @@ export default function HomeScreen() {
 
   const bell = require("../../assets/sounds/bell.wav");
 
-  useEffect(() => {
-    fetch('https://qb-walker-data.vercel.app/indexes.json')
-      .then((res) => res.json())
-      .then((json) => setIndexes(json))
-      .catch((err) => console.error(err));
-  }, []);
-
+  
   useEffect(() => {
     setHistoryData(historyDataJson);
   }, []);
@@ -52,19 +47,12 @@ export default function HomeScreen() {
     }
   }, [mode]);
 
-
-  if (!indexes) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ThemedView style={styles.stepContainer}>
-          <ThemedText type="subtitle">Loading json - indexes</ThemedText>
-          <ThemedText>
-            This may take a while :}
-          </ThemedText>
-        </ThemedView>
-      </View>
-    );
-  }
+  useEffect(() => {
+    fetch('https://qb-walker-data.vercel.app/indexes.json')
+      .then((res) => res.json())
+      .then((json) => setIndexes(json))
+      .catch((err) => console.error(err));
+  }, []);
 
   if (!historyData) {
     return (
@@ -84,6 +72,19 @@ export default function HomeScreen() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedView style={styles.stepContainer}>
           <ThemedText type="subtitle">Loading json - science questions</ThemedText>
+          <ThemedText>
+            This may take a while :}
+          </ThemedText>
+        </ThemedView>
+      </View>
+    );
+  }
+
+  if (!indexes) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ThemedView style={styles.stepContainer}>
+          <ThemedText type="subtitle">Loading json - indexes</ThemedText>
           <ThemedText>
             This may take a while :}
           </ThemedText>
@@ -171,9 +172,8 @@ export default function HomeScreen() {
     const playSecondOrThird = () => {
       if (forceNext) return playThird();
       if (secondpartexists) {
-        playSound(bell, () => {
-          playSound(question2, playThird);
-        });
+        playSound(bell, () => {});
+        playSound(question2, playThird);
       } else {
         playThird();
       }
@@ -274,12 +274,16 @@ export default function HomeScreen() {
       </ThemedView>
       
       {finalPhase && randomNum !== null && scienceData[randomNum] && (
-        <ThemedView style={styles.trueBottom}>
-          <ThemedText type="subtitle">Question:</ThemedText>
-          <ThemedText>{scienceData[randomNum].question}</ThemedText>
-
-          <ThemedText type="subtitle" style={{ marginTop: 12 }}>Answer:</ThemedText>
-          <ThemedText>{scienceData[randomNum].answer}</ThemedText>
+        <ThemedView style={mainStyles.trueBottom}>
+          <ScrollView style={mainStyles.QAScroll}>
+            <ThemedText type="subtitle">Question:</ThemedText>
+            <ThemedText>
+              {scienceData[randomNum].question[0] +
+                (scienceData[randomNum].question[1] ? "[*]" + scienceData[randomNum].question[1] : "")}
+            </ThemedText>
+            <ThemedText type="subtitle" style={{ marginTop: 12 }}>Answer:</ThemedText>
+            <ThemedText>{scienceData[randomNum].answer}</ThemedText>
+          </ScrollView>
         </ThemedView>
       )}
 
@@ -324,6 +328,10 @@ const mainStyles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  QAScroll: {
+    maxHeight: height / 3,
+    marginVertical: 8
   },
 });
 
