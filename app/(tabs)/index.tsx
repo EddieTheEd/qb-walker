@@ -18,7 +18,10 @@ import scienceDataJson from "../../data/qb_science.json";
 
 import * as FileSystem from "expo-file-system";
 
+import { useSettings } from '@/hooks/SettingsContext';
+
 export default function HomeScreen() {
+  const { settings, updateSettings, loading } = useSettings();
 
   const [indexes, setIndexes] = useState(null);
   const [randomNum, setRandomNum] = useState<number | null>(null);
@@ -28,11 +31,11 @@ export default function HomeScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [forceNext, setForceNext] = useState(false);
   const [finalPhase, setFinalPhase] = useState(false);
+  const [currentCategory, setCurrentCategory] = useState<string | null>(null); // Add this state
   const soundRef = useRef<Audio.Sound | null>(null);
 
   const bell = require("../../assets/sounds/bell.wav");
 
-  
   useEffect(() => {
     setHistoryData(historyDataJson);
   }, []);
@@ -53,6 +56,15 @@ export default function HomeScreen() {
       .then((json) => setIndexes(json))
       .catch((err) => console.error(err));
   }, []);
+
+  // Loading checks - these should come AFTER state initialization
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading settings...</Text>
+      </View>
+    );
+  }
 
   if (!historyData) {
     return (
@@ -145,16 +157,24 @@ export default function HomeScreen() {
   const main = async () => {
     if (mode !== "randomPrompt") return;
 
+    const content = settings.content;
+
+    const category = content === 'mixed' 
+    ? (Math.random() < 0.5 ? 'science' : 'history') // may need to change
+    : content;
+
+    setCurrentCategory(category);
+
     setIsPlaying(true);
     setForceNext(false);
     setFinalPhase(false);
 
-    const max = indexes.science;
+    const max = indexes[category];
     const num = Math.floor(Math.random() * max);
 
     setRandomNum(num-1);
 
-    const base = `https://qb-walker-data.vercel.app/science/science-${num}`;
+    const base = `https://qb-walker-data.vercel.app/${category}/${category}-${num}`;
 
     const question1 = `${base}-1.mp3`;
     const question2 = `${base}-2.mp3`;
@@ -188,7 +208,7 @@ export default function HomeScreen() {
       onPress: () => setMode("randomPrompt")
     },
     {
-      label: "Review",
+      label: "Review (not functional)",
       onPress: () => setMode("reviewPrompt"),
     },
   ];
@@ -204,39 +224,52 @@ export default function HomeScreen() {
       </TouchableOpacity>
     ));
 
-    const handleBuzzPress = async () => {
-      setForceNext(true);
-      if (soundRef.current) {
-        try {
-          await soundRef.current.stopAsync();
-          await soundRef.current.unloadAsync();
-          setFinalPhase(true);
-          
-          const url = `https://qb-walker-data.vercel.app/science/science-${randomNum + 1}-3.mp3`;
+  const handleBuzzPress = async () => {
+    setForceNext(true);
+    if (soundRef.current && currentCategory && randomNum !== null) { // Use currentCategory instead of settings.content
+      try {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        setFinalPhase(true);
+        
+        const url = `https://qb-walker-data.vercel.app/${currentCategory}/${currentCategory}-${randomNum + 1}-3.mp3`;
 
-          playSound(url, () => setIsPlaying(false));
-        } catch (e) {
-          console.warn("Error handling buzz press", e);
-        }
+        playSound(url, () => setIsPlaying(false));
+      } catch (e) {
+        console.warn("Error handling buzz press", e);
       }
-    };
+    }
+  };
 
-    return (
+  return (
     <ThemedView>
-
       <ThemedView style={mainStyles.top}>
         <ThemedView style={styles.titleContainer}>
           <ThemedText type="title">Quizbowl walker!</ThemedText>
         </ThemedView>
 
-        <ThemedView style={styles.stepContainer}>
-          <ThemedText type="subtitle">Available questions:</ThemedText>
-          <ThemedText>
-            <ThemedText type="defaultSemiBold">Science</ThemedText>: {indexes.science}
-          </ThemedText>
-          <ThemedText>
-            <ThemedText type="defaultSemiBold">History</ThemedText>: {indexes.history}
-          </ThemedText>
+        <ThemedView style={mainStyles.stepContainer}>
+          <ScrollView 
+            style={{ flex: 1 }}
+            contentContainerStyle={mainStyles.defaultScroll}
+          >
+            <ThemedText type="subtitle">Available questions:</ThemedText>
+            <ThemedText>
+              <ThemedText type="defaultSemiBold">Science</ThemedText>: {indexes.science}
+            </ThemedText>
+            <ThemedText>
+              <ThemedText type="defaultSemiBold">History</ThemedText>: {indexes.history}
+            </ThemedText>
+            {/*<ThemedText>
+              <ThemedText type="defaultSemiBold">Show ans</ThemedText>: {settings.showQA ? 'Yes' : 'No'}
+            </ThemedText>
+            <ThemedText>
+              <ThemedText type="defaultSemiBold">Show content</ThemedText>: {settings.content}
+            </ThemedText>
+            <ThemedText>
+              <ThemedText type="defaultSemiBold">Show ans</ThemedText>: {settings.showAnswers ? 'Yes' : 'No'}
+            </ThemedText>*/}
+          </ScrollView>
         </ThemedView>
       </ThemedView>
 
@@ -273,19 +306,26 @@ export default function HomeScreen() {
           ) : null}
       </ThemedView>
       
-      {finalPhase && randomNum !== null && scienceData[randomNum] && (
-        <ThemedView style={mainStyles.trueBottom}>
+      <ThemedView style={mainStyles.trueBottom}>
+      {finalPhase &&
+        randomNum !== null &&
+        settings.showQA && (
           <ScrollView style={mainStyles.QAScroll}>
             <ThemedText type="subtitle">Question:</ThemedText>
             <ThemedText>
-              {scienceData[randomNum].question[0] +
-                (scienceData[randomNum].question[1] ? "[*]" + scienceData[randomNum].question[1] : "")}
+              {(currentCategory === 'science' ? scienceData : historyData)[randomNum].question[0] +
+                ((currentCategory === 'science' ? scienceData : historyData)[randomNum].question[1]
+                  ? "[*]" + (currentCategory === 'science' ? scienceData : historyData)[randomNum].question[1]
+                  : "")}
             </ThemedText>
+
             <ThemedText type="subtitle" style={{ marginTop: 12 }}>Answer:</ThemedText>
-            <ThemedText>{scienceData[randomNum].answer}</ThemedText>
+            <ThemedText>
+              {(currentCategory === 'science' ? scienceData : historyData)[randomNum].answer}
+            </ThemedText>
           </ScrollView>
-        </ThemedView>
       )}
+      </ThemedView>
 
     </ThemedView>
   );
@@ -325,7 +365,7 @@ const mainStyles = StyleSheet.create({
     backgroundColor: "#da090c",
   },
   buttonText: {
-    color: "#fff",
+    color: "#e0e0e0",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -333,6 +373,10 @@ const mainStyles = StyleSheet.create({
     maxHeight: height / 3,
     marginVertical: 8
   },
+  defaultScroll: {
+    flexGrow: 1,
+    paddingBottom: 50,
+  }
 });
 
 const styles = StyleSheet.create({
@@ -353,4 +397,3 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
 });
-
