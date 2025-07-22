@@ -57,7 +57,6 @@ export default function HomeScreen() {
       .catch((err) => console.error(err));
   }, []);
 
-  // Loading checks - these should come AFTER state initialization
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -192,11 +191,12 @@ export default function HomeScreen() {
     const playSecondOrThird = () => {
       if (forceNext) return playThird();
       if (secondpartexists) {
-        playSound(bell, () => {});
+      playSound(bell, () => {
         playSound(question2, playThird);
-      } else {
-        playThird();
-      }
+      });
+    } else {
+      playThird();
+    }
     };
 
     playSound(question1, playSecondOrThird);
@@ -226,10 +226,10 @@ export default function HomeScreen() {
 
   const handleBuzzPress = async () => {
     setForceNext(true);
-    if (soundRef.current && currentCategory && randomNum !== null) { // Use currentCategory instead of settings.content
+    if (soundRef.current && currentCategory && randomNum !== null) {
       try {
-        await soundRef.current.stopAsync();
         await soundRef.current.unloadAsync();
+        soundRef.current = null;
         setFinalPhase(true);
         
         const url = `https://qb-walker-data.vercel.app/${currentCategory}/${currentCategory}-${randomNum + 1}-3.mp3`;
@@ -239,6 +239,7 @@ export default function HomeScreen() {
         console.warn("Error handling buzz press", e);
       }
     }
+    setForceNext(false);
   };
 
   return (
@@ -285,7 +286,14 @@ export default function HomeScreen() {
                 main();
               }}
             >
-              <Text style={mainStyles.buttonText}>Continue</Text>
+              <Text style={mainStyles.buttonText} onPress={async () => {
+                await stopSound();
+                setForceNext(false);
+                setFinalPhase(false);
+                setTimeout(() => {
+                  main();
+                }, 0);
+              }}>Continue</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
