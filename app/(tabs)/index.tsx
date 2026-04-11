@@ -309,7 +309,7 @@ export default function HomeScreen() {
           </View>
           ) : isPlaying ? (
             <TouchableOpacity onPress={handleBuzzPress} style={[mainStyles.stackButton, mainStyles.buzzer]}>
-              <Text style={mainStyles.buttonText}>Buzz</Text>
+              <Text style={[mainStyles.buttonText, mainStyles.buzztext]}>Buzz</Text>
             </TouchableOpacity>
           ) : null}
       </ThemedView>
@@ -371,11 +371,15 @@ const mainStyles = StyleSheet.create({
   },
   buzzer: {
     backgroundColor: "#da090c",
+    paddingVertical: 50,
   },
   buttonText: {
     color: "#e0e0e0",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  buzztext: {
+    fontSize: 32,
   },
   QAScroll: {
     maxHeight: height / 3,
